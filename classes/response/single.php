@@ -140,12 +140,10 @@ class single extends base {
     public function get_bulk_sql($surveyid, $responseid = false, $userid = false, $groupid = false) {
         global $DB;
 
-        $usernamesql = $DB->sql_cast_char2int('qr.username');
-
         $sql = $this->bulk_sql($surveyid, $responseid, $userid);
         $params = [];
         if (($groupid !== false) && ($groupid > 0)) {
-            $groupsql = ' INNER JOIN {groups_members} gm ON gm.groupid = ? AND gm.userid = '.$usernamesql.' ';
+            $groupsql = ' INNER JOIN {groups_members} gm ON gm.groupid = ? AND gm.userid = qr.userid ';
             $gparams = [$groupid];
         } else {
             $groupsql = '';
@@ -154,7 +152,7 @@ class single extends base {
         $sql .= "
             AND qr.survey_id = ? AND qr.complete = ?
       LEFT JOIN {questionnaire_response_other} qro ON qro.response_id = qr.id AND qro.choice_id = qrs.choice_id
-      LEFT JOIN {user} u ON u.id = $usernamesql
+      LEFT JOIN {user} u ON u.id = qr.userid
       $groupsql
         ";
         $params = array_merge([$surveyid, 'y'], $gparams);
@@ -162,7 +160,7 @@ class single extends base {
             $sql .= " WHERE qr.id = ?";
             $params[] = $responseid;
         } else if ($userid) {
-            $sql .= " WHERE qr.username = ?"; // Note: username is the userid.
+            $sql .= " WHERE qr.userid = ?";
             $params[] = $userid;
         }
 
@@ -178,12 +176,12 @@ class single extends base {
         global $DB;
 
         $userfields = $this->user_fields_sql();
-        $extraselect = 'qrs.choice_id, ' . $DB->sql_order_by_text('qro.response', 1000) . ', 0 AS rank';
+        $extraselect = 'qrs.choice_id, ' . $DB->sql_order_by_text('qro.response', 1000) . ' AS response, 0 AS rank';
         $alias = 'qrs';
 
         return "
             SELECT " . $DB->sql_concat_join("'_'", ['qr.id', "'".$this->question->helpname()."'", $alias.'.id']) . " AS id,
-                   qr.submitted, qr.complete, qr.grade, qr.username, $userfields, qr.id AS rid, $alias.question_id,
+                   qr.submitted, qr.complete, qr.grade, qr.userid, $userfields, qr.id AS rid, $alias.question_id,
                    $extraselect
               FROM {questionnaire_response} qr
               JOIN {".$this->response_table()."} $alias ON $alias.response_id = qr.id

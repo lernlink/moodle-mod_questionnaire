@@ -104,7 +104,7 @@ abstract class base {
         QUESDROP => 'drop',
         QUESRATE => 'rate',
         QUESDATE => 'date',
-        QUESNUMERIC => 'numeric',
+        QUESNUMERIC => 'numerical',
         QUESPAGEBREAK => 'pagebreak',
         QUESSECTIONTEXT => 'sectiontext'
     ];
@@ -118,7 +118,7 @@ abstract class base {
      * The class constructor
      *
      */
-    public function __construct($id = 0, $question = null, $context = null, $params = array()) {
+    public function __construct($id = 0, $question = null, $context = null, $params = []) {
         global $DB;
         static $qtypes = null;
 
@@ -169,14 +169,22 @@ abstract class base {
      */
     abstract public function helpname();
 
-    static public function question_builder($qtype, $params = null) {
-        global $CFG;
-
+    /**
+     * Build a question from data.
+     * @var int $qtype The question type code.
+     * @var int|array|object $qdata Either the id of the record, or a structure containing the question data, or null.
+     * @var object $context The context for the question.
+     * @return A question object.
+     */
+    static public function question_builder($qtype, $qdata = null, $context = null) {
         $qclassname = '\\mod_questionnaire\\question\\'.self::qtypename($qtype);
-        if (!empty($params) && is_array($params)) {
-            $params = (object)$params;
+        $qid = 0;
+        if (!empty($qdata) && is_array($qdata)) {
+            $qdata = (object)$qdata;
+        } else if (!empty($qdata) && is_int($qdata)) {
+            $qid = $qdata;
         }
-        return new $qclassname(0, $params, null, ['type_id' => $qtype]);
+        return new $qclassname($qid, $qdata, $context, ['type_id' => $qtype]);
     }
 
     /**
@@ -342,13 +350,8 @@ abstract class base {
      * @param array $choicerecords An array of choice records with 'content' and 'value' properties.
      * @param boolean $calcposition Whether or not to calculate the next available position in the survey.
      */
-    public function add($questionrecord, array $choicerecords = null, boolean $calcposition = null) {
+    public function add($questionrecord, array $choicerecords = null, $calcposition = true) {
         global $DB;
-
-        // Default boolean parameter to "true".
-        if ($calcposition === null) {
-            $calcposition = true;
-        }
 
         // Create new question.
         if ($calcposition) {
@@ -600,7 +603,7 @@ abstract class base {
                 $required .= get_string('required', 'questionnaire');
                 $required .= html_writer::end_tag('div');
                 $required .= html_writer::empty_tag('img', ['class' => 'req', 'title' => get_string('required', 'questionnaire'),
-                    'alt' => get_string('required', 'questionnaire'), 'src' => $OUTPUT->pix_url('req')]);
+                    'alt' => get_string('required', 'questionnaire'), 'src' => $OUTPUT->image_url('req')]);
             }
             $pagetags->required = $required; // Need to replace this with better renderer / template?
         }
@@ -779,7 +782,7 @@ abstract class base {
         }
 
         $mform->addElement('html', '<div class="qoptcontainer">');
-        $options = array('wrap' => 'virtual', 'class' => 'qopts');
+        $options = ['wrap' => 'virtual', 'class' => 'qopts'];
         $mform->addElement('textarea', 'allchoices', get_string('possibleanswers', 'questionnaire'), $options);
         $mform->setType('allchoices', PARAM_RAW);
         $mform->addRule('allchoices', null, 'required', null, 'client');
@@ -982,7 +985,7 @@ abstract class base {
             $userfields .= $userfields === '' ? '' : ', ';
             $userfields .= 'u.'.$field;
         }
-        $userfields .= ', u.id as userid';
+        $userfields .= ', u.id as uid';
         return $userfields;
     }
 }
